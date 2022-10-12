@@ -317,6 +317,7 @@ module Fluent::Plugin
         router.emit_stream(@tag, es)
         @bookmarks_storage.put(ch, subscribe.bookmark)
         log.trace "Collecting Windows EventLog from #{ch} channel. Collected size: #{es.size}"
+
       rescue Winevt::EventLog::Query::Error => e
         log.warn "Invalid XML data on #{ch}.", error: e
         log.warn_backtrace
@@ -360,14 +361,33 @@ module Fluent::Plugin
     RECORD_DELIMITER = "\r\n\t".freeze
     FIELD_DELIMITER = "\t\t".freeze
     NONE_FIELD_DELIMITER = "\t".freeze
+    SYSMON_DELIMITER = "\r\n".freeze ##Sysmon_support
+
 
     def parse_desc(record)
       desc = record.delete("Description".freeze)
+
       return if desc.nil?
 
       elems = desc.split(GROUP_DELIMITER)
+      elem2 = desc.split(SYSMON_DELIMITER) #Split_into_array(/r/n)
+   
+      #loop-through-array
+      elem2.each { |x|
+        key, value = x.split(":", 2) #split_key:value_pair_in_two
+        parent_key = to_key(key)  
+        record[parent_key] = value #dump-key-and-value
+      }
+
+
+
+
+
+
       record['DescriptionTitle'] = elems.shift
+
       previous_key = nil
+      
       elems.each { |elem|
         parent_key = nil
         elem.split(RECORD_DELIMITER).each { |r|
